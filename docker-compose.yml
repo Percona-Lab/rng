@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # The Flask web application container
+  web:
+    build: .
+    container_name: release_notes_web
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app  # Mounts the current directory into the container for live code changes
+    environment:
+      - FLASK_ENV=development
+      - MONGO_URI=mongodb://db:27017/release_notes
+    depends_on:
+      - db
+    networks:
+      - release-net
+
+  # The MongoDB database container
+  db:
+    image: percona/percona-server-mongodb:8.0
+    container_name: release_notes_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - release-net
+
+# Define the network for containers to communicate
+networks:
+  release-net:
+    driver: bridge
+
+# Define the persistent volume for MongoDB data
+volumes:
+  mongo-data:
+    driver: local

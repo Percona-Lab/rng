@@ -1,0 +1,6 @@
+Flask
+requests
+pymongo
+Flask-Cors
+beautifulsoup4
+lxml

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Release Notes Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <nav class="bg-white shadow-md">
+        <div class="container mx-auto max-w-5xl px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="text-2xl font-bold text-gray-800">Release Notes Service</div>
+                <div class="flex space-x-4">
+                    <a href="#dashboard" class="text-gray-600 hover:text-blue-600 font-semibold nav-link">Dashboard</a>
+                    <a href="#settings" class="text-gray-600 hover:text-blue-600 font-semibold nav-link">Settings</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="app-container" class="container mx-auto max-w-5xl my-8 px-4">
+        <!-- Pages will be rendered here by JavaScript -->
+    </main>
+
+    <!-- Page Templates -->
+    <template id="dashboard-template">
+        <div data-page="dashboard">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold">Releases Dashboard</h1>
+                <a href="#new-release" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition nav-link">New Release</a>
+            </div>
+            <div id="releases-list" class="bg-white rounded-xl shadow-lg p-6">
+                <!-- Release items will be injected here -->
+            </div>
+        </div>
+    </template>
+
+    <template id="release-form-template">
+        <div data-page="release-form" class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <h1 class="text-3xl font-bold mb-6" id="form-title">Create New Release</h1>
+            <form id="release-form" class="space-y-6">
+                <input type="hidden" id="release-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="version" class="block text-sm font-medium text-gray-600 mb-1">Version</label>
+                        <input type="text" id="version" class="w-full p-2 border border-gray-300 rounded-md" placeholder="e.g., 2.8.1" required>
+                    </div>
+                    <div>
+                        <label for="project" class="block text-sm font-medium text-gray-600 mb-1">Project</label>
+                        <select id="project" class="w-full p-2 border border-gray-300 rounded-md" required>
+                            <option value="PSMDB">PSMDB</option>
+                            <option value="PBM">PBM</option>
+                            <option value="PLM">PLM</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="plannedDate" class="block text-sm font-medium text-gray-600 mb-1">Planned Release Date</label>
+                    <input type="date" id="plannedDate" class="w-full p-2 border border-gray-300 rounded-md" required>
+                </div>
+                <div>
+                    <label for="releaseHighlights" class="block text-sm font-medium text-gray-600 mb-1">Release Highlights (Markdown)</label>
+                    <textarea id="releaseHighlights" class="w-full p-2 border border-gray-300 rounded-md h-40" placeholder="### New Feature&#10;Description of the new feature..."></textarea>
+                </div>
+                <div>
+                    <label for="jiraTickets" class="block text-sm font-medium text-gray-600 mb-1">JIRA Ticket Keys</label>
+                    <textarea id="jiraTickets" class="w-full p-2 border border-gray-300 rounded-md h-32" placeholder="PSMDB-123, PSMDB-456"></textarea>
+                </div>
+                <div>
+                    <label for="upstreamUrls" class="block text-sm font-medium text-gray-600 mb-1">Upstream Release URLs</label>
+                    <textarea id="upstreamUrls" class="w-full p-2 border border-gray-300 rounded-md h-24" placeholder="https://www.mongodb.com/docs/manual/release-notes/8.0/..."></textarea>
+                </div>
+                <!-- NEW: Upstream Bug Fix URLs Field -->
+                <div>
+                    <label for="upstreamBugUrls" class="block text-sm font-medium text-gray-600 mb-1">Upstream Bug Fix URLs (MongoDB JIRA)</label>
+                    <textarea id="upstreamBugUrls" class="w-full p-2 border border-gray-300 rounded-md h-24" placeholder="https://jira.mongodb.org/browse/SERVER-12345"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <a href="#dashboard" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 nav-link">Cancel</a>
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Save Release</button>
+                </div>
+            </form>
+        </div>
+    </template>
+
+    <template id="release-details-template">
+        <div data-page="release-details">
+            <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h1 class="text-3xl font-bold" id="details-version"></h1>
+                        <p class="text-gray-500" id="details-project-date"></p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="#" id="edit-release-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 nav-link">Edit</a>
+                        <button id="generate-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 flex items-center">
+                            <span id="generate-btn-text">Generate</span>
+                            <div id="generate-spinner" class="spinner hidden ml-2"></div>
+                        </button>
+                    </div>
+                </div>
+                <div id="result-container" class="hidden mt-8 border-t pt-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex border-b">
+                            <div id="tab-markdown" class="tab-btn active">Markdown</div>
+                            <div id="tab-preview" class="tab-btn">Preview</div>
+                        </div>
+                        <button id="copy-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Copy</button>
+                    </div>
+                    <pre id="result-output" class="bg-gray-100 p-4 rounded-lg border"></pre>
+                    <div id="result-preview" class="prose max-w-none p-4 hidden"></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="settings-template">
+        <div data-page="settings" class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <h1 class="text-3xl font-bold mb-6">Settings</h1>
+            <form id="settings-form" class="space-y-6">
+                <div>
+                    <label for="jiraUrl" class="block text-sm font-medium text-gray-600 mb-1">JIRA URL</label>
+                    <input type="text" id="jiraUrl" class="w-full p-2 border border-gray-300 rounded-md" placeholder="your-company.atlassian.net">
+                </div>
+                <div>
+                    <label for="jiraEmail" class="block text-sm font-medium text-gray-600 mb-1">JIRA Email</label>
+                    <input type="email" id="jiraEmail" class="w-full p-2 border border-gray-300 rounded-md" placeholder="your.name@company.com">
+                </div>
+                <div>
+                    <label for="jiraToken" class="block text-sm font-medium text-gray-600 mb-1">JIRA API Token</label>
+                    <input type="password" id="jiraToken" class="w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="geminiToken" class="block text-sm font-medium text-gray-600 mb-1">Gemini API Token</label>
+                    <input type="password" id="geminiToken" class="w-full p-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </template>
+
+    <script>
+        const appContainer = document.getElementById('app-container');
+        const converter = new showdown.Converter();
+        let currentReleaseId = null;
+        const API_BASE_URL = 'http://127.0.0.1:8080';
+
+        // --- Router ---
+        const router = () => {
+            const hash = window.location.hash || '#dashboard';
+            const [path, id] = hash.split('/');
+            currentReleaseId = id;
+            
+            appContainer.innerHTML = '';
+            
+            switch(path) {
+                case '#dashboard': renderDashboard(); break;
+                case '#new-release': renderReleaseForm(); break;
+                case '#edit-release': renderReleaseForm(currentReleaseId); break;
+                case '#release-details': renderReleaseDetails(currentReleaseId); break;
+                case '#settings': renderSettings(); break;
+                default: renderDashboard();
+            }
+        };
+
+        // --- Page Renderers ---
+        const renderDashboard = async () => {
+            const template = document.getElementById('dashboard-template').content.cloneNode(true);
+            appContainer.appendChild(template);
+            appContainer.querySelector('[data-page]').classList.add('active');
+            
+            const listEl = document.getElementById('releases-list');
+            listEl.innerHTML = '<p>Loading releases...</p>';
+            
+            const response = await fetch(`${API_BASE_URL}/api/releases`);
+            const releases = await response.json();
+            
+            if (releases.length === 0) {
+                listEl.innerHTML = '<p>No releases found. Create one to get started!</p>';
+                return;
+            }
+
+            listEl.innerHTML = releases.map(r => `
+                <div class="flex justify-between items-center p-4 border-b last:border-b-0">
+                    <div>
+                        <a href="#release-details/${r._id}" class="text-lg font-semibold text-blue-600 hover:underline nav-link">${r.project} ${r.version}</a>
+                        <p class="text-sm text-gray-500">Planned for: ${r.plannedDate}</p>
+                    </div>
+                    <a href="#edit-release/${r._id}" class="text-sm text-gray-500 hover:text-gray-800 nav-link">Edit</a>
+                </div>
+            `).join('');
+        };
+
+        const renderReleaseForm = async (id = null) => {
+            const template = document.getElementById('release-form-template').content.cloneNode(true);
+            appContainer.appendChild(template);
+            appContainer.querySelector('[data-page]').classList.add('active');
+            
+            const form = document.getElementById('release-form');
+            const formTitle = document.getElementById('form-title');
+            
+            if (id) {
+                formTitle.textContent = 'Edit Release';
+                const res = await fetch(`${API_BASE_URL}/api/releases/${id}`);
+                const data = await res.json();
+                document.getElementById('release-id').value = data._id;
+                document.getElementById('version').value = data.version;
+                document.getElementById('project').value = data.project;
+                document.getElementById('plannedDate').value = data.plannedDate;
+                document.getElementById('jiraTickets').value = data.jiraTickets;
+                document.getElementById('upstreamUrls').value = data.upstreamUrls;
+                document.getElementById('releaseHighlights').value = data.releaseHighlights || '';
+                document.getElementById('upstreamBugUrls').value = data.upstreamBugUrls || ''; // Load bug URLs
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const releaseId = document.getElementById('release-id').value;
+                const payload = {
+                    version: document.getElementById('version').value,
+                    project: document.getElementById('project').value,
+                    plannedDate: document.getElementById('plannedDate').value,
+                    jiraTickets: document.getElementById('jiraTickets').value,
+                    upstreamUrls: document.getElementById('upstreamUrls').value,
+                    releaseHighlights: document.getElementById('releaseHighlights').value,
+                    upstreamBugUrls: document.getElementById('upstreamBugUrls').value, // Save bug URLs
+                };
+                
+                const url = releaseId ? `${API_BASE_URL}/api/releases/${releaseId}` : `${API_BASE_URL}/api/releases`;
+                const method = releaseId ? 'PUT' : 'POST';
+
+                await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                window.location.hash = '#dashboard';
+            });
+        };
+
+        const renderReleaseDetails = async (id) => {
+            const template = document.getElementById('release-details-template').content.cloneNode(true);
+            appContainer.appendChild(template);
+            appContainer.querySelector('[data-page]').classList.add('active');
+
+            const res = await fetch(`${API_BASE_URL}/api/releases/${id}`);
+            const data = await res.json();
+            
+            document.getElementById('details-version').textContent = `Version ${data.version}`;
+            document.getElementById('details-project-date').textContent = `${data.project} - Planned for ${data.plannedDate}`;
+            document.getElementById('edit-release-btn').href = `#edit-release/${id}`;
+
+            if (data.generatedMarkdown) {
+                document.getElementById('result-container').classList.remove('hidden');
+                document.getElementById('result-output').textContent = data.generatedMarkdown;
+                document.getElementById('result-preview').innerHTML = converter.makeHtml(data.generatedMarkdown);
+            }
+            
+            document.getElementById('generate-btn').addEventListener('click', async () => {
+                const btn = document.getElementById('generate-btn');
+                const btnText = document.getElementById('generate-btn-text');
+                const spinner = document.getElementById('generate-spinner');
+                
+                btn.disabled = true;
+                btnText.textContent = 'Generating...';
+                spinner.classList.remove('hidden');
+
+                const genRes = await fetch(`${API_BASE_URL}/api/releases/${id}/generate`, { method: 'POST' });
+                const genData = await genRes.json();
+
+                if (genRes.ok) {
+                    document.getElementById('result-container').classList.remove('hidden');
+                    document.getElementById('result-output').textContent = genData.markdown;
+                    document.getElementById('result-preview').innerHTML = converter.makeHtml(genData.markdown);
+                } else {
+                    alert(`Error: ${genData.error}`);
+                }
+
+                btn.disabled = false;
+                btnText.textContent = 'Generate';
+                spinner.classList.add('hidden');
+            });
+
+            document.getElementById('tab-markdown').addEventListener('click', () => showView('markdown'));
+            document.getElementById('tab-preview').addEventListener('click', () => showView('preview'));
+            document.getElementById('copy-btn').addEventListener('click', () => {
+                navigator.clipboard.writeText(document.getElementById('result-output').textContent);
+            });
+        };
+
+        const renderSettings = async () => {
+            const template = document.getElementById('settings-template').content.cloneNode(true);
+            appContainer.appendChild(template);
+            appContainer.querySelector('[data-page]').classList.add('active');
+
+            const res = await fetch(`${API_BASE_URL}/api/settings`);
+            const data = await res.json();
+            document.getElementById('jiraUrl').value = data.jiraUrl || '';
+            document.getElementById('jiraEmail').value = data.jiraEmail || '';
+            document.getElementById('jiraToken').value = data.jiraToken || '';
+            document.getElementById('geminiToken').value = data.geminiToken || '';
+
+            document.getElementById('settings-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const payload = {
+                    jiraUrl: document.getElementById('jiraUrl').value,
+                    jiraEmail: document.getElementById('jiraEmail').value,
+                    jiraToken: document.getElementById('jiraToken').value,
+                    geminiToken: document.getElementById('geminiToken').value,
+                };
+                await fetch(`${API_BASE_URL}/api/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                alert('Settings saved!');
+            });
+        };
+
+        const showView = (view) => {
+            const tabMarkdown = document.getElementById('tab-markdown');
+            const tabPreview = document.getElementById('tab-preview');
+            const resultOutput = document.getElementById('result-output');
+            const resultPreview = document.getElementById('result-preview');
+            if (view === 'markdown') {
+                tabMarkdown.classList.add('active');
+                tabPreview.classList.remove('active');
+                resultOutput.classList.remove('hidden');
+                resultPreview.classList.add('hidden');
+            } else {
+                tabMarkdown.classList.remove('active');
+                tabPreview.classList.add('active');
+                resultOutput.classList.add('hidden');
+                resultPreview.classList.remove('hidden');
+            }
+        }
+
+        // --- Initial Load and Navigation ---
+        window.addEventListener('hashchange', router);
+        window.addEventListener('load', router);
+        document.body.addEventListener('click', e => {
+            if (e.target.matches('.nav-link')) {
+                e.preventDefault();
+                window.location.hash = e.target.getAttribute('href');
+            }
+        });
+    </script>
+</body>
+</html>

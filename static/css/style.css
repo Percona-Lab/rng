@@ -1,0 +1,44 @@
+body { 
+    font-family: 'Inter', sans-serif; 
+}
+
+.spinner { 
+    border: 4px solid rgba(0,0,0,0.1); 
+    width: 24px; 
+    height: 24px; 
+    border-radius: 50%; 
+    border-left-color: #fff; 
+    animation: spin 1s ease infinite; 
+}
+
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
+
+.tab-btn { 
+    cursor: pointer; 
+    padding: 8px 16px; 
+    border-bottom: 2px solid transparent; 
+    transition: all 0.2s; 
+}
+
+.tab-btn.active { 
+    border-bottom-color: #3b82f6; 
+    color: #1e40af; 
+    font-weight: 600; 
+}
+
+[data-page] { 
+    display: none; 
+}
+
+[data-page].active { 
+    display: block; 
+}
+
+/* Added general rule for all <pre> elements */
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
