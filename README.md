@@ -26,7 +26,16 @@ A full-stack web application designed to streamline the process of creating, man
 
 ## Project Structure
 
-/release-notes-generator/|-- docker-compose.yml      # Orchestrates the web and db containers|-- Dockerfile              # Defines the build steps for the Flask container|-- requirements.txt        # Python dependencies for the backend|-- app.py                  # The Flask backend application logic|-- /static/|   |-- /css/|       |-- style.css       # Custom CSS styles|-- /templates/|-- index.html          # The single-page application HTML shell and JS logic
+/release-notes-generator/
+|-- docker-compose.yml      # Orchestrates the web and db containers
+|-- Dockerfile              # Defines the build steps for the Flask container
+|-- requirements.txt        # Python dependencies for the backend
+|-- app.py                  # The Flask backend application logic
+|-- /static/
+|   |-- /css/
+|       |-- style.css       # Custom CSS styles
+|-- /templates/
+|-- index.html          # The single-page application HTML shell and JS logic
 ---
 
 ## Setup and Running the Application
