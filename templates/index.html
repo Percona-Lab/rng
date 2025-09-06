@@ -46,17 +46,32 @@
             <h1 class="text-3xl font-bold mb-6" id="form-title">Create New Release</h1>
             <form id="release-form" class="space-y-6">
                 <input type="hidden" id="release-id">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div style="display:block;">
+                        <label for="version" class="block text-sm font-bold text-blue-700 mb-1">Version <span style="color:red;">*</span></label>
+                        <input type="text" id="version" class="w-full p-2 border border-blue-400 rounded-md" placeholder="e.g., 2.8.1" required>
+                    </div>
                     <div>
-                        <label for="version" class="block text-sm font-medium text-gray-600 mb-1">Version</label>
-                        <input type="text" id="version" class="w-full p-2 border border-gray-300 rounded-md" placeholder="e.g., 2.8.1" required>
+                        <label for="releaseType" class="block text-sm font-medium text-gray-600 mb-1">Release Notes Type</label>
+                        <select id="releaseType" class="w-full p-2 border border-gray-300 rounded-md" required>
+                            <option value="mongodb">MongoDB Software</option>
+                            <option value="operator">Percona Operator</option>
+                        </select>
                     </div>
                     <div>
                         <label for="project" class="block text-sm font-medium text-gray-600 mb-1">Project</label>
                         <select id="project" class="w-full p-2 border border-gray-300 rounded-md" required>
-                            <option value="PSMDB">PSMDB</option>
-                            <option value="PBM">PBM</option>
-                            <option value="PLM">PLM</option>
+                            <optgroup label="MongoDB Software">
+                                <option value="PSMDB">PSMDB</option>
+                                <option value="PBM">PBM</option>
+                                <option value="PLM">PLM</option>
+                            </optgroup>
+                            <optgroup label="Percona Operators">
+                                <option value="Operator for MongoDB">Operator for MongoDB</option>
+                                <option value="Operator for PostgreSQL">Operator for PostgreSQL</option>
+                                <option value="Operator for MySQL (PXC)">Operator for MySQL (PXC)</option>
+                                <option value="Operator for MySQL (PS)">Operator for MySQL (PS)</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -203,10 +218,10 @@
             const template = document.getElementById('release-form-template').content.cloneNode(true);
             appContainer.appendChild(template);
             appContainer.querySelector('[data-page]').classList.add('active');
-            
+
             const form = document.getElementById('release-form');
             const formTitle = document.getElementById('form-title');
-            
+
             if (id) {
                 formTitle.textContent = 'Edit Release';
                 const res = await fetch(`${API_BASE_URL}/api/releases/${id}`);
@@ -218,8 +233,27 @@
                 document.getElementById('jiraTickets').value = data.jiraTickets;
                 document.getElementById('upstreamUrls').value = data.upstreamUrls;
                 document.getElementById('releaseHighlights').value = data.releaseHighlights || '';
-                document.getElementById('upstreamBugUrls').value = data.upstreamBugUrls || ''; // Load bug URLs
+                document.getElementById('upstreamBugUrls').value = data.upstreamBugUrls || '';
+                if (data.releaseType) {
+                    document.getElementById('releaseType').value = data.releaseType;
+                }
             }
+
+            // Hide upstream fields for operator projects
+            const releaseTypeEl = document.getElementById('releaseType');
+            const upstreamUrlsEl = document.getElementById('upstreamUrls');
+            const upstreamBugUrlsEl = document.getElementById('upstreamBugUrls');
+            function toggleUpstreamFields() {
+                if (releaseTypeEl.value === 'operator') {
+                    upstreamUrlsEl.parentElement.style.display = 'none';
+                    upstreamBugUrlsEl.parentElement.style.display = 'none';
+                } else {
+                    upstreamUrlsEl.parentElement.style.display = '';
+                    upstreamBugUrlsEl.parentElement.style.display = '';
+                }
+            }
+            releaseTypeEl.addEventListener('change', toggleUpstreamFields);
+            toggleUpstreamFields();
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -229,11 +263,15 @@
                     project: document.getElementById('project').value,
                     plannedDate: document.getElementById('plannedDate').value,
                     jiraTickets: document.getElementById('jiraTickets').value,
-                    upstreamUrls: document.getElementById('upstreamUrls').value,
                     releaseHighlights: document.getElementById('releaseHighlights').value,
-                    upstreamBugUrls: document.getElementById('upstreamBugUrls').value, // Save bug URLs
+                    releaseType: document.getElementById('releaseType').value,
                 };
-                
+                // Only include upstream fields for non-operator
+                if (releaseTypeEl.value !== 'operator') {
+                    payload.upstreamUrls = upstreamUrlsEl.value;
+                    payload.upstreamBugUrls = upstreamBugUrlsEl.value;
+                }
+
                 const url = releaseId ? `${API_BASE_URL}/api/releases/${releaseId}` : `${API_BASE_URL}/api/releases`;
                 const method = releaseId ? 'PUT' : 'POST';
 
@@ -242,7 +280,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
+
                 window.location.hash = '#dashboard';
             });
         };

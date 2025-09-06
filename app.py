@@ -26,6 +26,16 @@ db = client.get_database()
 app.logger.info("Successfully connected to MongoDB.")
 
 # --- Helper Functions ---
+# --- JIRA Project Mapping ---
+JIRA_PROJECTS = {
+    "PSMDB": "PSMDB",
+    "PBM": "PBM",
+    "PLM": "PLM",
+    "Operator for MongoDB": "K8SPSMDB",
+    "Operator for PostgreSQL": "K8SPG",
+    "Operator for MySQL (PXC)": "K8SPXC",
+    "Operator for MySQL (PS)": "K8SPS",
+}
 def parse_jira_description(description_field):
     if not isinstance(description_field, dict) or "content" not in description_field:
         return ""
@@ -104,6 +114,7 @@ def generate_release_notes(release_id):
         app.logger.error("Generation failed: JIRA settings are incomplete.")
         return jsonify({"error": "JIRA settings are incomplete. Please configure them on the Settings page."}), 400
 
+    release_type = release.get('releaseType', 'mongodb')
     mongo_intro = generate_mongo_intro(release.get('upstreamUrls', ''), release.get('version', ''))
     release_highlights = release.get('releaseHighlights', '')
     upstream_bug_urls = release.get('upstreamBugUrls', '')
@@ -112,8 +123,15 @@ def generate_release_notes(release_id):
     ticket_keys = sorted(list(set(filter(None, re.split(r'[,\s\n]+', release.get('jiraTickets', ''))))))
     tickets_with_summaries = []
     app.logger.info(f"Processing {len(ticket_keys)} JIRA tickets.")
+    project = release.get('project')
+    jira_project_key = JIRA_PROJECTS.get(project, project)
     for key in ticket_keys:
-        ticket_info = fetch_jira_ticket(domain, email, token, key.upper())
+        # If key does not start with project, prepend it (for operators)
+        if not key.upper().startswith(jira_project_key.upper() + "-") and key.isdigit():
+            full_key = f"{jira_project_key}-{key}"
+        else:
+            full_key = key.upper()
+        ticket_info = fetch_jira_ticket(domain, email, token, full_key)
         if ticket_info:
             title = ticket_info.get("fields", {}).get("summary", "No title")
             description_text = parse_jira_description(ticket_info.get("fields", {}).get("description"))
@@ -125,12 +143,45 @@ def generate_release_notes(release_id):
         app.logger.warning("Could not fetch data for any provided JIRA tickets.")
         return jsonify({"error": "Could not fetch data for any JIRA tickets."}), 400
 
-    markdown_output = generate_final_markdown(mongo_intro, release_highlights, upstream_section, tickets_with_summaries, release.get('version'), release.get('codename'), domain)
+    if release_type == 'operator':
+        markdown_output = generate_operator_markdown(mongo_intro, release_highlights, upstream_section, tickets_with_summaries, release.get('version'), release.get('codename'), domain, project)
+    else:
+        markdown_output = generate_final_markdown(mongo_intro, release_highlights, upstream_section, tickets_with_summaries, release.get('version'), release.get('codename'), domain)
     db.releases.update_one({'_id': ObjectId(release_id)}, {'$set': {'generatedMarkdown': markdown_output}})
     app.logger.info(f"Successfully generated and saved markdown for release {release_id}.")
     return jsonify({"markdown": markdown_output})
 
 # --- Business Logic Functions ---
+
+# Operator-specific markdown template
+def generate_operator_markdown(mongo_intro, release_highlights, upstream_section, tickets, version, codename, domain, project):
+    md_lines = []
+    title_line = f"# {project} Release {version}" if version else f"# {project} Release Notes"
+    if codename:
+        title_line += f' - "{codename}"'
+    md_lines.append(title_line)
+    md_lines.append(f"*Released on: {datetime.now().strftime('%Y-%m-%d')}*")
+    md_lines.append("---")
+    if release_highlights and release_highlights.strip():
+        md_lines.append("## Operator Highlights")
+        md_lines.append(release_highlights)
+        md_lines.append("---")
+    if upstream_section:
+        md_lines.append(upstream_section)
+        md_lines.append("---")
+    categories = {"features": [], "fixes": [], "maintenance": []}
+    ISSUE_TYPE_MAP = {'Story': 'features', 'New Feature': 'features', 'Improvement': 'features', 'Epic': 'features', 'Bug': 'fixes', 'Defect': 'fixes', 'Task': 'maintenance', 'Sub-task': 'maintenance', 'Chore': 'maintenance', 'Technical Debt': 'maintenance'}
+    for ticket in tickets:
+        issue_type = ticket.get("fields", {}).get("issuetype", {}).get("name", "Task")
+        categories[ISSUE_TYPE_MAP.get(issue_type, "maintenance")].append(ticket)
+    section_map = {"features": "## ✨ Operator Features & Enhancements", "fixes": "## 🐛 Operator Bug Fixes", "maintenance": "## 🔧 Operator Maintenance"}
+    for category, title in section_map.items():
+        if categories[category]:
+            md_lines.append(title)
+            for ticket in categories[category]:
+                md_lines.append(f"- [{ticket['key']}](https://{domain}/browse/{ticket['key']}): {ticket['releaseNoteSummary']}")
+            md_lines.append("")
+    return "\n".join(md_lines)
 
 def generate_mongo_intro(urls_raw, version):
     if not urls_raw or not urls_raw.strip(): return ""
