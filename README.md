@@ -2,6 +2,8 @@
 
 A full-stack web application designed to streamline the process of creating, managing, and generating software release notes. This service provides a collaborative environment where users can define release metadata, automatically summarize JIRA tickets using AI, and scrape upstream bug fixes to produce comprehensive, well-formatted Markdown documents.
 
+The application supports multiple Percona projects including PSMDB, PBM, PLM, and various Kubernetes operators (K8SPSMDB, K8SPS, K8SPXC, P8SPG), with specialized handling for upstream integration (MongoDB release notes and bug fixes) for PSMDB projects.
+
 ## Features
 
 - **Collaborative Dashboard**: View all releases in a central dashboard.
@@ -15,9 +17,9 @@ A full-stack web application designed to streamline the process of creating, man
 
 ## Tech Stack
 
-- **Backend**: Python with Flask
+- **Backend**: Python with Flask (modular architecture with blueprints)
 - **Database**: MongoDB
-- **Frontend**: Vanilla JavaScript (SPA architecture), HTML5, Tailwind CSS
+- **Frontend**: Vanilla JavaScript (modular SPA), HTML5, Tailwind CSS
 - **AI Integration**: Google Gemini API
 - **Web Scraping**: BeautifulSoup4, lxml
 - **Containerization**: Docker, Docker Compose
@@ -25,17 +27,34 @@ A full-stack web application designed to streamline the process of creating, man
 ---
 
 ## Project Structure
+
 ```
 /release-notes-generator/
-|-- docker-compose.yml      # Orchestrates the web and db containers
-|-- Dockerfile              # Defines the build steps for the Flask container
-|-- requirements.txt        # Python dependencies for the backend
-|-- app.py                  # The Flask backend application logic
-|-- /static/
-|   |-- /css/
-|       |-- style.css       # Custom CSS styles
-|-- /templates/
-|-- index.html          # The single-page application HTML shell and JS logic
+├── docker-compose.yml      # Orchestrates the web and db containers
+├── Dockerfile              # Defines the build steps for the Flask container
+├── requirements.txt        # Python dependencies for the backend
+├── app.py                  # Flask app factory and entry point
+├── /modules/               # Backend modules
+│   ├── __init__.py         # Package initializer
+│   ├── api.py              # API routes blueprint (/api/*)
+│   ├── views.py            # View routes blueprint (/, /release)
+│   └── helpers.py          # Business logic and utility functions
+│   ├── api.py              # API routes for data handling
+│   ├── views.py            # View routes for serving HTML pages
+│   ├── helpers.py          # Business logic and utility functions
+│   └── gen_markdown.py     # Script to generate certified images table
+├── /static/
+│   ├── /css/
+│   │   └── style.css       # Custom CSS styles
+│   ├── /icons/             # Project-specific icons for the timeline
+│   │   ├── kubernetes.png
+│   │   └── mongodb.png
+│   └── /js/
+│       ├── main.js         # Dashboard and settings JavaScript
+│       └── release.js      # Release management JavaScript
+└── /templates/
+    ├── index.html          # Main dashboard and settings page
+    └── release.html        # Release creation and details page
 ```
 ---
 
@@ -77,15 +96,17 @@ A full-stack web application designed to streamline the process of creating, man
 
 2.  **Create a New Release**:
     - Go to the **Dashboard**.
-    - Click the **New Release** button.
+    - Click the **New Release** button (opens the dedicated release page).
     - Fill in the release details:
         - **Version**: The version number of your release (e.g., `2.15.0`).
-        - **Project**: Select the project (e.g., `PSMDB`).
+        - **Project**: Select the project (PSMDB, PBM, PLM, K8SPSMDB, K8SPS, K8SPXC, P8SPG).
+        - **Introduction Template**: Choose a preset introduction or use custom text.
+        - **Introduction**: Auto-generated for PSMDB based on upstream URLs, or editable for other projects.
         - **Planned Release Date**: The target date for the release.
         - **Release Highlights**: (Optional) Add custom Markdown for key features or announcements.
         - **JIRA Ticket Keys**: A comma or space-separated list of your project's JIRA tickets.
-        - **Upstream Release URLs**: (Optional) URLs to the official MongoDB Community Edition release notes.
-        - **Upstream Bug Fix URLs**: (Optional) URLs to specific bug tickets on `jira.mongodb.org`.
+        - **Upstream Release URLs**: (PSMDB only) URLs to the official MongoDB Community Edition release notes.
+        - **Upstream Bug Fix URLs**: (PSMDB only) URLs to specific bug tickets on `jira.mongodb.org`.
     - Click **Save Release**.
 
 3.  **Generate Release Notes**:
@@ -93,8 +114,10 @@ A full-stack web application designed to streamline the process of creating, man
     - Click the **Generate** button.
     - The application will contact the JIRA and Gemini APIs, perform any necessary web scraping, and generate the complete Markdown document.
     - The result will be displayed in both raw **Markdown** and a rendered **Preview** tab.
+    - Use the **Copy** button to copy the generated Markdown to your clipboard.
 
 4.  **Edit and Manage**:
     - You can edit any release by clicking the **Edit** button on the dashboard or the details page.
     - The generated Markdown is saved to the database, so it will be available immediately the next time you visit the details page.
+    - Navigation between dashboard and release pages is seamless with the modular page structure.
 

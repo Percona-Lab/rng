@@ -4,3 +4,5 @@ pymongo
 Flask-Cors
 beautifulsoup4
 lxml
+pandas
+tabulate
