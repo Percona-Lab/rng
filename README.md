@@ -4,7 +4,7 @@ A full-stack web application designed to streamline the process of creating, man
 
 The application supports multiple Percona projects including PSMDB, PBM, PLM, and various Kubernetes operators (K8SPSMDB, K8SPS, K8SPXC, P8SPG), with specialized handling for upstream integration (MongoDB release notes and bug fixes) for PSMDB projects.
 
-![Application Dashboard](/img/dashboard.png)
+![Application Dashboard](/static/img/dashboard.png)
 
 ## Features
 
