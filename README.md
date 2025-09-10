@@ -4,6 +4,8 @@ A full-stack web application designed to streamline the process of creating, man
 
 The application supports multiple Percona projects including PSMDB, PBM, PLM, and various Kubernetes operators (K8SPSMDB, K8SPS, K8SPXC, P8SPG), with specialized handling for upstream integration (MongoDB release notes and bug fixes) for PSMDB projects.
 
+![Application Dashboard](/img/dashboard.png)
+
 ## Features
 
 - **Collaborative Dashboard**: View all releases in a central dashboard.
@@ -49,6 +51,8 @@ The application supports multiple Percona projects including PSMDB, PBM, PLM, an
 │   ├── /icons/             # Project-specific icons for the timeline
 │   │   ├── kubernetes.png
 │   │   └── mongodb.png
+│   ├── /img/
+│   │   └── dashboard.png   # Dashboard image for README.md
 │   └── /js/
 │       ├── main.js         # Dashboard and settings JavaScript
 │       └── release.js      # Release management JavaScript
@@ -120,4 +124,3 @@ The application supports multiple Percona projects including PSMDB, PBM, PLM, an
     - You can edit any release by clicking the **Edit** button on the dashboard or the details page.
     - The generated Markdown is saved to the database, so it will be available immediately the next time you visit the details page.
     - Navigation between dashboard and release pages is seamless with the modular page structure.
-
