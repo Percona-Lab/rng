@@ -135,13 +135,25 @@ const renderReleaseForm = async (id = null) => {
         const url = releaseId ? `${API_BASE_URL}/api/releases/${releaseId}` : `${API_BASE_URL}/api/releases`;
         const method = releaseId ? 'PUT' : 'POST';
 
-        await fetch(url, {
+        const response = await fetch(url, {
             method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        window.location.href = '/release#release-details/' + releaseId;
+        if (response.ok) {
+            if (method === 'POST') {
+                const newData = await response.json();
+                // After creating a new release, redirect to its details page.
+                window.location.href = `/release#release-details/${newData.id}`;
+            } else {
+                // After updating, redirect back to the same details page.
+                window.location.href = `/release#release-details/${releaseId}`;
+            }
+        } else {
+            const errorData = await response.json();
+            alert(`Error: ${errorData.error || 'Could not save the release.'}`);
+        }
     });
 
     applyIntroTemplate(introTemplateEl.value);

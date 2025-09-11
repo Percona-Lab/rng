@@ -133,7 +133,7 @@ def generate_release_notes(release_id):
     jira_release_id = release.get('jiraReleaseId')
     if jira_release_id:
         app.logger.info(f"Fetching JIRA tickets for release ID (fixVersion): {jira_release_id}")
-        jql = f'fixVersion = {jira_release_id} ORDER BY key ASC'
+        jql = f'fixVersion = "{jira_release_id}" AND (type != "Admin & Maintenance Task" OR "Security Level" is EMPTY OR "Security Level" != "🟥 INTERNAL TASK ONLY 🟥") ORDER BY key ASC'
         release_tickets = fetch_jira_tickets_by_jql(app, domain, email, token, jql)
         all_ticket_keys.update([t['key'] for t in release_tickets])
 

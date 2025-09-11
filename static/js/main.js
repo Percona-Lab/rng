@@ -151,8 +151,17 @@ const renderSettings = async () => {
 
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const jiraUrlInput = document.getElementById('jiraUrl');
+        const jiraUrlValue = jiraUrlInput.value.trim();
+
+        // Validate Jira URL format
+        if (jiraUrlValue.startsWith('http://') || jiraUrlValue.startsWith('https://')) {
+            alert('Invalid JIRA URL. Please enter the domain only, without "http://" or "https://".\nExample: your-company.atlassian.net');
+            return;
+        }
+
         const payload = {
-            jiraUrl: document.getElementById('jiraUrl').value,
+            jiraUrl: jiraUrlValue,
             jiraEmail: document.getElementById('jiraEmail').value,
             jiraToken: document.getElementById('jiraToken').value,
             geminiToken: document.getElementById('geminiToken').value,
