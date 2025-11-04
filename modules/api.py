@@ -4,8 +4,9 @@ import subprocess
 from datetime import datetime
 
 from .helpers import (
+    parse_jira_comment,
     resolve_introduction,
-    parse_jira_description,
+    parse_jira_content,
     get_summary_from_ai,
     process_upstream_bugs,
     generate_supported_software_md,
@@ -15,9 +16,13 @@ from .helpers import (
 
 api_bp = Blueprint('api', __name__)
 
-
 @api_bp.route('/settings', methods=['GET', 'POST'])
 def settings():
+    """
+    /api/settings
+    GET: Retrieves the global settings.
+    POST: Updates the global settings.
+    """
     app = current_app
     db = app.mongo_db
     app.logger.info(f"Request received for /api/settings, method: {request.method}")
@@ -30,9 +35,13 @@ def settings():
     app.logger.info("Fetched settings successfully.")
     return jsonify(settings_data or {})
 
-
 @api_bp.route('/releases', methods=['GET', 'POST'])
 def releases():
+    """
+    /api/releases
+    GET: Retrieves a list of all releases, sorted by creation date.
+    POST: Creates a new release.
+    """
     app = current_app
     db = app.mongo_db
     app.logger.info(f"Request received for /api/releases, method: {request.method}")
@@ -48,9 +57,14 @@ def releases():
     app.logger.info(f"Fetched {len(all_releases)} releases from the database.")
     return jsonify(all_releases)
 
-
 @api_bp.route('/releases/<release_id>', methods=['GET', 'PUT', 'DELETE'])
 def release_detail(release_id):
+    """
+    /api/releases/<release_id>
+    GET: Retrieves details for a specific release.
+    PUT: Updates a specific release.
+    DELETE: Deletes a specific release.
+    """
     app = current_app
     db = app.mongo_db
     app.logger.info(f"Request for /api/releases/{release_id}, method: {request.method}")
@@ -76,6 +90,10 @@ def release_detail(release_id):
 
 @api_bp.route('/releases/<release_id>/generate', methods=['POST'])
 def generate_release_notes(release_id):
+    """
+    /api/releases/<release_id>/generate
+    POST: Triggers the generation of release notes for a specific release.
+    """
     app = current_app
     db = app.mongo_db
     app.logger.info(f"Starting release notes generation for ID: {release_id}")
@@ -105,7 +123,8 @@ def generate_release_notes(release_id):
     if release.get('project') in operator_projects:
         supported_software_md = generate_supported_software_md(release.get('supportedSoftware', ''))
         supported_platforms_md = generate_supported_platforms_md(release.get('supportedPlatforms', ''), release.get('version', ''))
-    # Generate "Percona Certified Images" section for operators
+        
+        # Generate "Percona Certified Images" section for operators
         json_url = release.get('certifiedImagesJsonUrl')
         if json_url:
             app.logger.info(f"Generating certified images markdown from URL: {json_url}")
@@ -149,8 +168,12 @@ def generate_release_notes(release_id):
         ticket_info = fetch_jira_ticket(app, domain, email, token, key.upper())
         if ticket_info:
             title = ticket_info.get("fields", {}).get("summary", "No title")
-            description_text = parse_jira_description(ticket_info.get("fields", {}).get("description"))
-            summary = get_summary_from_ai(app, title, description_text, gemini_token, is_upstream=False)
+            description_text = parse_jira_content(ticket_info.get("fields", {}).get("description"))
+            jira_comments = ticket_info.get("fields", {}).get("comment", {}).get("comments", [])
+            comments_text = parse_jira_comment(jira_comments)
+            summary = get_summary_from_ai(app, title, description_text, comments_text, gemini_token, is_upstream=False)
+            app.logger.info(f" JIRA Ticket {key}: {summary}")
+            app.logger.debug(f" JIRA Ticket {key}: {summary} (Title: {title}, Description: {description_text}, Comments: {comments_text})")
             ticket_info['releaseNoteSummary'] = summary
             tickets_with_summaries.append(ticket_info)
 
@@ -163,12 +186,10 @@ def generate_release_notes(release_id):
     app.logger.info(f"Successfully generated and saved markdown for release {release_id}.")
     return jsonify({"markdown": markdown_output})
 
-
 # External service helpers that need current_app logging
 import requests
 from requests.auth import HTTPBasicAuth
 import re
-
 
 def fetch_jira_tickets_by_jql(app, domain, email, token, jql):
     url = f"https://{domain}/rest/api/3/search/jql"

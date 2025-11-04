@@ -91,6 +91,24 @@ The application supports multiple Percona projects including PSMDB, PBM, PLM, an
 
 ---
 
+## Running Tests
+
+To run the unit tests for this project, follow these steps:
+
+1.  **Install Dependencies**:
+    Make sure you have Python 3 and pip installed. Then, install the required packages:
+    ```bash
+    pip3 install -r requirements.txt
+    ```
+
+2.  **Run Tests**:
+    Execute the following command from the root of the project directory:
+    ```bash
+    python3 -m unittest discover tests
+    ```
+
+---
+
 ## How to Use
 
 1.  **Configure Settings**:

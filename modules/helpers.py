@@ -28,8 +28,8 @@ K8SPS_INTRO = (
 )
 
 
-def parse_jira_description(description_field):
-    if not isinstance(description_field, dict) or "content" not in description_field:
+def parse_jira_content(content_field):
+    if not isinstance(content_field, dict) or "content" not in content_field:
         return ""
     text_content = []
     def recurse(nodes):
@@ -38,9 +38,20 @@ def parse_jira_description(description_field):
                 text_content.append(node["text"])
             if "content" in node and isinstance(node["content"], list):
                 recurse(node["content"])
-    recurse(description_field["content"])
+    recurse(content_field["content"])
     return " ".join(text_content)
 
+def parse_jira_comment(comments):
+    comments_list = []
+    if isinstance(comments, list):
+        comments_list = comments
+    elif isinstance(comments, dict):
+        comments_list = comments.get("comment", {}).get("comments", [])
+
+    if not isinstance(comments_list, list):
+        return ""
+        
+    return " ".join([parse_jira_content(comment.get("body", {})) for comment in comments_list])
 
 def resolve_introduction(app, release: dict) -> str:
     custom_intro = (release.get('customIntroduction') or '').strip()
@@ -86,13 +97,14 @@ It supports protocols and drivers of MongoDB Community {' through '.join(sorted(
 """
 
 
-def get_summary_from_ai(app, title, description, gemini_token, is_upstream=False):
+def get_summary_from_ai(app, title, description, comments, gemini_token, is_upstream=False):
     if not description or not description.strip(): return title
     prompt_intro = "Generate a concise, user-friendly summary for an upstream bug fix. The summary should be a single, clear sentence explaining the fix from an end-user's perspective." if is_upstream else "Generate a concise, user-friendly summary for a software release note based on the following JIRA ticket details. The summary should be a single, clear sentence explaining the change from an end-user's perspective."
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key={gemini_token}"
     prompt = f"""{prompt_intro} Do not start with phrases like "This ticket" or "The user can now". Just state the change directly.
 Original JIRA Title: "{title}"
 JIRA Description: "{description}"
+JIRA Comments: "{comments}"
 Release Note Summary:"""
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
@@ -123,13 +135,15 @@ def process_upstream_bugs(app, bug_urls_raw, release_urls_raw, gemini_token):
             soup = BeautifulSoup(response.content, 'lxml')
             title_element = soup.find('div', id='summary-val')
             description_element = soup.find('div', id='descriptionmodule')
-            if not title_element or not description_element:
-                app.logger.warning(f"Could not find title or description elements on {url}")
+            comments_element = soup.find("div", id="comment-tabpanel-tabpanel")
+            if not title_element or not description_element or not comments_element:
+                app.logger.warning(f"Could not find title, description, nor comments elements on {url}")
                 continue
             title = title_element.get_text(strip=True)
             description = description_element.get_text(strip=True, separator='\n')
+            comments = comments_element.get_text(strip=True, separator='\n')
             ticket_id = url.split('/')[-1]
-            summary = get_summary_from_ai(app, title, description, gemini_token, is_upstream=True)
+            summary = get_summary_from_ai(app, title, description, comments, gemini_token, is_upstream=True)
             summarized_bugs.append(f"* [{ticket_id}]({url}) - {summary}")
         except requests.exceptions.RequestException as e:
             app.logger.error(f"Could not scrape URL {url}: {e}")
